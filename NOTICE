@@ -1,0 +1,54 @@
+Third-party notices
+===================
+
+This Visual Studio Code / Cursor extension is independent software. It launches
+the separately installed Pi Coding Agent CLI. It does not bundle, fork, or
+redistribute that CLI.
+
+This extension is not an official Pi product and is not affiliated with,
+endorsed by, or sponsored by Mario Zechner, Earendil Inc., or the Pi project.
+
+
+Pi Coding Agent
+---------------
+
+Pi Coding Agent is an open-source terminal coding agent.
+
+- Website: https://pi.dev
+- Source:  https://github.com/earendil-works/pi
+- CLI:     @earendil-works/pi-coding-agent
+- License: MIT License
+- Copyright (c) 2025 Mario Zechner
+
+The MIT license for Pi grants copyright permissions for the Pi software. It
+does not grant trademark rights in the Pi name or logo.
+
+
+Pi geometric mark
+-----------------
+
+The extension icon and editor-chrome marks are derived from official Pi website
+assets:
+
+- https://github.com/earendil-works/pi-website/blob/main/src/favicon.svg
+- https://github.com/earendil-works/pi-website/blob/main/src/logo.svg
+
+Those assets are published under the MIT License.
+
+Copyright (c) 2026 Earendil Inc. and contributors
+
+They are used here only to identify the Pi Coding Agent CLI that this
+extension launches (nominative identification). This extension does not claim
+ownership of the mark.
+
+
+Trademarks
+----------
+
+Pi, Pi Coding Agent, Earendil, and the Pi geometric logo are trademarks or
+trade names of their respective owners. Use of those names and marks in this
+extension, its Marketplace listing, and its documentation does not imply
+affiliation, endorsement, or sponsorship.
+
+No license to any trademark is granted by this NOTICE or by the MIT License
+for this extension.

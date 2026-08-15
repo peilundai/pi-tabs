@@ -1,0 +1,180 @@
+{
+  "name": "pi-agent-launcher",
+  "displayName": "Pi Coding Agent Tabs",
+  "description": "Open Pi Coding Agent in focused editor tabs, reuse one group, and insert files as @mentions. Unofficial and open source.",
+  "version": "0.2.0",
+  "publisher": "peilundai",
+  "author": {
+    "name": "Peilun Dai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/peilundai/pi-tabs.git"
+  },
+  "homepage": "https://github.com/peilundai/pi-tabs#readme",
+  "bugs": {
+    "url": "https://github.com/peilundai/pi-tabs/issues"
+  },
+  "pricing": "Free",
+  "icon": "media/pi-coding-agent-icon.png",
+  "galleryBanner": {
+    "color": "#09090b",
+    "theme": "dark"
+  },
+  "keywords": [
+    "pi",
+    "pi coding agent",
+    "coding agent",
+    "ai",
+    "terminal",
+    "chat"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onCommand:piAgent.open",
+    "onCommand:piAgent.newChat",
+    "onCommand:piAgent.insertPath"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Pi is a coding agent with filesystem and process access. Open the workspace only when you trust its contents."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "The extension launches a local or remote Pi process and requires a filesystem-backed working directory."
+    }
+  },
+  "categories": [
+    "Chat",
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "piAgent.open",
+        "title": "Open Agent",
+        "category": "Pi"
+      },
+      {
+        "command": "piAgent.newChat",
+        "title": "New Agent Chat",
+        "category": "Pi",
+        "icon": {
+          "light": "media/pi-coding-agent-light.svg",
+          "dark": "media/pi-coding-agent-dark.svg"
+        }
+      },
+      {
+        "command": "piAgent.insertPath",
+        "title": "Insert into Chat",
+        "category": "Pi"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "piAgent.newChat",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "piAgent.insertPath",
+          "group": "navigation@90",
+          "when": "resourceScheme == file || resourceScheme == vscode-remote"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "piAgent.insertPath",
+          "group": "navigation@90",
+          "when": "resourceScheme == file || resourceScheme == vscode-remote"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Pi Agent",
+      "properties": {
+        "piAgent.command": {
+          "type": "string",
+          "default": "pi",
+          "scope": "window",
+          "description": "Pi executable to run. The value is treated as one executable name or path, not as shell syntax."
+        },
+        "piAgent.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "window",
+          "description": "Extra arguments passed to the Pi command, for example [\"--model\", \"composer-2\"]."
+        },
+        "piAgent.cwdMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "workspaceRoot",
+            "prompt"
+          ],
+          "enumDescriptions": [
+            "Single-root workspaces use that folder. Multi-root workspaces use the folder of the active editor file, otherwise the first folder.",
+            "Always use the first workspace folder.",
+            "Ask which workspace folder to use when more than one is open."
+          ],
+          "default": "auto",
+          "scope": "resource",
+          "description": "How Pi Agent chooses its working directory."
+        },
+        "piAgent.launchMode": {
+          "type": "string",
+          "enum": [
+            "loginShell",
+            "profile"
+          ],
+          "enumDescriptions": [
+            "Run Pi through a login shell on macOS/Linux or directly on Windows. Recommended.",
+            "Use the default VS Code terminal profile, then send the Pi command as text. Windows profiles other than Command Prompt may require manual quoting adjustments."
+          ],
+          "default": "loginShell",
+          "scope": "window",
+          "description": "How the Pi process is started."
+        },
+        "piAgent.titleMaxLength": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 80,
+          "default": 24,
+          "scope": "window",
+          "description": "Maximum number of characters shown for a Pi session title on macOS and Linux."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src test",
+    "test": "tsc -p tsconfig.test.json && node --test .test-out/test/*.test.js",
+    "check": "npm run lint && npm test && npm run compile",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "@types/node": "^22.10.1",
+    "@types/vscode": "1.85.0",
+    "@vscode/vsce": "^3.2.2",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.17.0"
+  }
+}
