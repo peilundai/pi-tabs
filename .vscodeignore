@@ -17,6 +17,7 @@ package-lock.json
 **/*.ts
 **/*.map
 .gitignore
+.gitattributes
 **/*.test.ts
 node_modules/**
 .DS_Store

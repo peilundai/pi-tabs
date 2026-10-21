@@ -37,12 +37,24 @@ test("every contributed command has a matching activation event", () => {
 });
 
 test("the license file stays canonical MIT text and dev docs stay unpackaged", () => {
-  const license = readFileSync("LICENSE", "utf8");
+  // A Windows checkout can rewrite LF as CRLF. The assertion is the MIT text.
+  const license = readFileSync("LICENSE", "utf8").replaceAll("\r\n", "\n");
   assert.match(license, /^MIT License\n\nCopyright \(c\) 2026 Peilun Dai\n/);
   assert.doesNotMatch(license, /This license covers/);
   assert.match(readFileSync("NOTICE", "utf8"), /covers this Visual Studio Code/);
+  assert.match(
+    readFileSync(".gitattributes", "utf8").replaceAll("\r\n", "\n"),
+    /^\* text=auto eol=lf$/m,
+  );
   const ignore = readFileSync(".vscodeignore", "utf8");
-  for (const entry of ["AGENTS.md", "CLAUDE.md", "PUBLISHING.md", "src/**", "test/**"]) {
+  for (const entry of [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "PUBLISHING.md",
+    ".gitattributes",
+    "src/**",
+    "test/**",
+  ]) {
     assert.equal(ignore.includes(entry), true, entry);
   }
   const manifestWithListing = JSON.parse(readFileSync("package.json", "utf8")) as {

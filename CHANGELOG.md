@@ -23,6 +23,8 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Restore the canonical MIT license text so Marketplace and Open VSX detect
   MIT. Scope and upstream icon license text now live in `NOTICE`.
 - Leave agent notes and the publishing guide out of the packaged VSIX.
+- Keep repository text files on LF so a Windows checkout does not rewrite the
+  MIT license text.
 
 ### Changed
 
