@@ -17,6 +17,24 @@ const runtimePython = locatePythonWithPty({
     spawnSync(executable, [...args], { timeout: timeoutMilliseconds }),
 });
 
+test("Python discovery searches PATH and rejects a failed probe", () => {
+  const probed: string[] = [];
+  assert.equal(
+    locatePythonWithPty({
+      platform: "linux",
+      environment: { PATH: "/opt/py/bin:/usr/bin", PYTHON3: "python3" },
+      exists: (candidate) =>
+        candidate === "/usr/bin/python3" || candidate === "/opt/py/bin/python3",
+      run: (executable) => {
+        probed.push(executable);
+        return { status: executable === "/opt/py/bin/python3" ? 0 : 1 };
+      },
+    }),
+    "/opt/py/bin/python3",
+  );
+  assert.deepEqual(probed, ["/opt/py/bin/python3"]);
+});
+
 test("Python discovery is disabled on Windows and bounded elsewhere", () => {
   assert.equal(
     locatePythonWithPty({

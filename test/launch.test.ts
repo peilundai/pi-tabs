@@ -3,8 +3,11 @@ import test from "node:test";
 import {
   buildCommandLine,
   buildLaunchPlan,
+  escapeCmdArgument,
+  profileExitCommand,
   quotePosix,
   quoteWindowsArgument,
+  windowsCmdShimLaunch,
 } from "../src/launch";
 
 test("POSIX quoting treats command and every argument as data", () => {
@@ -46,6 +49,28 @@ test("profile mode returns a command without choosing a shell", () => {
       {},
     ),
     { kind: "profile", commandLine: "pi" },
+  );
+});
+
+test("profile mode replaces a POSIX shell and does not type exit into Pi", () => {
+  assert.equal(profileExitCommand("pi --model x/y", "linux"), "exec pi --model x/y");
+  assert.equal(profileExitCommand("pi.exe --model x/y", "win32"), "pi.exe --model x/y");
+});
+
+test("Windows cmd shims escape percent and metacharacters without AutoRun", () => {
+  assert.equal(escapeCmdArgument("%literal%"), "%%literal%%");
+  assert.equal(escapeCmdArgument("foo&bar"), "foo^&bar");
+  assert.equal(escapeCmdArgument("two words"), "two words");
+  assert.deepEqual(
+    windowsCmdShimLaunch(
+      "C:\\npm\\pi.cmd",
+      ["--model", "%literal%"],
+      "C:\\Windows\\System32\\cmd.exe",
+    ),
+    {
+      shellPath: "C:\\Windows\\System32\\cmd.exe",
+      shellArgs: ["/d", "/c", "C:\\npm\\pi.cmd", "--model", "%%literal%%"],
+    },
   );
 });
 

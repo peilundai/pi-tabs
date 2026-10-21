@@ -5,9 +5,17 @@ import { readConfiguration } from "./configuration";
 import { EXTENSION_NAME } from "./constants";
 import { planDropInterception } from "./dropInterception";
 import {
+  assessExecutable,
+  firstExistingExecutable,
+  isExplicitPath,
+  missingExecutableMessage,
+  type ExecutableAvailability,
+} from "./executableLookup";
+import {
   buildLaunchPlan,
   profileExitCommand,
   terminalEnvironment,
+  windowsCmdShimLaunch,
 } from "./launch";
 import { formatMentions, resourceFsPath } from "./pathMentions";
 import { PiPseudoterminal } from "./piPseudoterminal";
@@ -16,10 +24,17 @@ import {
   locatePythonWithPty,
   wrapProfileWithBridge,
 } from "./pythonBridge";
+import { columnForUnplacedTerminal } from "./sessionPlacement";
+import {
+  shouldDisposeExitedTerminal,
+  shouldNotifyTerminalFailure,
+  terminalFailureMessage,
+} from "./terminalExit";
 import type {
   CwdMode,
   EditorKind,
   EditorRestore,
+  ExtensionConfiguration,
   ResourceTabSnapshot,
   WorkspaceFolderDescriptor,
 } from "./types";
@@ -30,6 +45,7 @@ interface PiSession {
   cwd?: string;
   viewColumn: number;
   lastUsed: number;
+  startedAt: number;
 }
 
 export class PiTerminalManager implements vscode.Disposable {
@@ -39,6 +55,8 @@ export class PiTerminalManager implements vscode.Disposable {
   private sequence = 0;
   private pythonCache: string | null | undefined;
   private handlingTabMove = false;
+  private readonly executableVerdicts = new Map<string, ExecutableAvailability>();
+  private readonly notedExits = new WeakSet<vscode.Terminal>();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -98,17 +116,41 @@ export class PiTerminalManager implements vscode.Disposable {
     const paths = resources
       .map((resource) => resourceFsPath(resource))
       .filter((item): item is string => Boolean(item));
-    await this.insertIntoSession(this.preferredSession(), paths);
-  }
-
-  private async createSession(): Promise<void> {
-    const configuration = readConfiguration();
-    const cwd = await this.resolveWorkingDirectory(configuration.cwdMode);
-    if (cwd === "cancelled") {
+    if (paths.length === 0) {
+      void vscode.window.showInformationMessage(
+        "Select a file or folder to insert into the Pi chat.",
+      );
       return;
     }
+    let session = this.preferredSession();
+    const created = !session;
+    if (!session) {
+      session = await this.createSession();
+    }
+    if (!session) {
+      return;
+    }
+    if (created) {
+      try {
+        await session.terminal.processId;
+      } catch {
+        return;
+      }
+    }
+    await this.insertIntoSession(session, paths);
+  }
 
-    const launch = buildLaunchPlan(configuration, process.platform, process.env);
+  private async createSession(): Promise<PiSession | undefined> {
+    const configuration = readConfiguration();
+    if (!this.ensureExecutable(configuration)) {
+      return undefined;
+    }
+    const cwd = await this.resolveWorkingDirectory(configuration.cwdMode);
+    if (cwd === "cancelled") {
+      return undefined;
+    }
+
+    const launch = this.launchForSession(configuration);
     const python = this.pythonWithPty();
     const bridgeScript = this.context.asAbsolutePath("scripts/pi-pty-bridge.py");
     const bridge = python
@@ -160,8 +202,9 @@ export class PiTerminalManager implements vscode.Disposable {
         location: { viewColumn, preserveFocus: false },
       };
       if (launch.kind === "loginShell") {
-        options.shellPath = launch.executable;
-        options.shellArgs = [...launch.args];
+        const shim = this.windowsShim(configuration);
+        options.shellPath = shim?.shellPath ?? launch.executable;
+        options.shellArgs = [...(shim?.shellArgs ?? launch.args)];
       }
       terminal = vscode.window.createTerminal(options);
     }
@@ -171,6 +214,7 @@ export class PiTerminalManager implements vscode.Disposable {
       cwd,
       viewColumn,
       lastUsed: ++this.sequence,
+      startedAt: Date.now(),
     };
     this.sessions.set(terminal, session);
     terminal.show(false);
@@ -197,8 +241,84 @@ export class PiTerminalManager implements vscode.Disposable {
     }
 
     this.output.appendLine(
-      `Opened Pi chat in ${cwd ?? "the terminal default directory"}.`,
+      `Opened a Pi chat using ${launch.kind} mode${cwd ? "" : " in the terminal default directory"}.`,
     );
+    return session;
+  }
+
+  private launchForSession(
+    configuration: ExtensionConfiguration,
+  ): ReturnType<typeof buildLaunchPlan> {
+    const launch = buildLaunchPlan(configuration, process.platform, process.env);
+    if (
+      launch.kind !== "loginShell" ||
+      process.platform !== "win32" ||
+      this.windowsShim(configuration)
+    ) {
+      return launch;
+    }
+    const resolved = firstExistingExecutable(
+      configuration.command,
+      "win32",
+      process.env,
+      fs.existsSync,
+    );
+    if (!resolved || /\.(cmd|bat)$/i.test(resolved)) {
+      return launch;
+    }
+    return { ...launch, executable: resolved };
+  }
+
+  private windowsShim(
+    configuration: ExtensionConfiguration,
+  ): { shellPath: string; shellArgs: readonly string[] } | undefined {
+    if (process.platform !== "win32" || configuration.launchMode !== "loginShell") {
+      return undefined;
+    }
+    const command = configuration.command.trim() || "pi";
+    const script = isExplicitPath(command, "win32")
+      ? /\.(cmd|bat)$/i.test(command) && fs.existsSync(command)
+        ? command
+        : undefined
+      : firstExistingExecutable(command, "win32", process.env, fs.existsSync);
+    if (!script || !/\.(cmd|bat)$/i.test(script)) {
+      return undefined;
+    }
+    return windowsCmdShimLaunch(script, configuration.args, process.env.ComSpec);
+  }
+
+  private ensureExecutable(configuration: ExtensionConfiguration): boolean {
+    const key = `${process.platform}\0${configuration.launchMode}\0${configuration.command}`;
+    let verdict = this.executableVerdicts.get(key);
+    if (!verdict) {
+      verdict = assessExecutable(
+        configuration.command,
+        process.platform,
+        process.env,
+        configuration.launchMode,
+        {
+          exists: fs.existsSync,
+          run: (executable, args, timeoutMilliseconds) =>
+            spawnSync(executable, [...args], {
+              timeout: timeoutMilliseconds,
+              encoding: "utf8",
+              windowsHide: true,
+              input: "",
+            }),
+        },
+      );
+      if (verdict !== "unverified") {
+        this.executableVerdicts.set(key, verdict);
+      }
+    }
+    if (verdict !== "missing") {
+      return true;
+    }
+    this.output.appendLine("Pi executable was not found.");
+    void vscode.window.showErrorMessage(
+      missingExecutableMessage(configuration.command, process.platform),
+    );
+    return false;
   }
 
   private targetViewColumn(): vscode.ViewColumn {
@@ -268,6 +388,7 @@ export class PiTerminalManager implements vscode.Disposable {
   }
 
   private async handleTabChanges(event: vscode.TabChangeEvent): Promise<void> {
+    this.bindUnplacedSession(event);
     if (this.handlingTabMove || event.opened.length === 0) {
       return;
     }
@@ -390,10 +511,44 @@ export class PiTerminalManager implements vscode.Disposable {
     }
   }
 
+  private bindUnplacedSession(event: vscode.TabChangeEvent): void {
+    const openedTerminalColumns = event.opened
+      .filter((tab) => tab.input instanceof vscode.TabInputTerminal)
+      .map((tab) => tab.group.viewColumn);
+    const unplaced = [...this.sessions.values()].filter(
+      (session) =>
+        session.viewColumn === vscode.ViewColumn.Beside &&
+        this.isAlive(session.terminal),
+    );
+    const column = columnForUnplacedTerminal(
+      openedTerminalColumns,
+      unplaced.length,
+      vscode.ViewColumn.Beside,
+    );
+    if (column === undefined || unplaced.length !== 1) {
+      return;
+    }
+    unplaced[0].viewColumn = column;
+  }
+
   private disposeExitedTerminals(): void {
     for (const session of this.sessions.values()) {
-      if (vscode.window.terminals.includes(session.terminal) && session.terminal.exitStatus) {
+      const status = session.terminal.exitStatus;
+      if (!vscode.window.terminals.includes(session.terminal) || !status) {
+        continue;
+      }
+      if (shouldDisposeExitedTerminal(status.code)) {
         session.terminal.dispose();
+        continue;
+      }
+      if (this.notedExits.has(session.terminal)) {
+        continue;
+      }
+      this.notedExits.add(session.terminal);
+      const code = status.code ?? 1;
+      this.output.appendLine(`Pi chat exited with code ${code}.`);
+      if (shouldNotifyTerminalFailure(code, Date.now() - session.startedAt)) {
+        void vscode.window.showErrorMessage(terminalFailureMessage(code));
       }
     }
   }

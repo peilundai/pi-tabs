@@ -74,18 +74,44 @@ modifier-assisted terminal drop on macOS and Linux.
 By default, a chat uses the relevant workspace folder, or the extension host's
 home directory when no workspace is open.
 
+Settings appear under **Pi Coding Agent**.
+
 ## Platform support
 
 - **macOS and Linux:** Full support with Python 3 and the standard Unix `pty`
   module.
-- **Windows:** Launching, group reuse, and context-menu insertion; Unix PTY
-  title and modifier-drop integration is unavailable.
+- **Windows:** Launching, group reuse, and context-menu insertion. Unix PTY
+  title and modifier-drop integration is unavailable. Profile mode leaves the
+  terminal's own shell open after Pi exits.
 - **Remote environments:** Supported when Pi and Python are installed in the
   remote extension host.
 - **Browser-only VS Code:** Unsupported without a remote extension host.
 
 If the optional Unix PTY adapter is unavailable, launching and context-menu
 insertion continue to work.
+
+Reloading the window closes Pi tabs. The extension does not adopt terminals
+from a previous session. Start **Pi: Open Agent** again after a reload. Pi's
+own session history, when you use it, stays inside Pi.
+
+## Troubleshooting
+
+**Pi was not found.** Install Pi separately and restart the window. On macOS
+and Linux the default launch mode runs a non-interactive login shell
+(`zsh -l` or `bash -l`), which reads `.zprofile` or `.profile` and does not
+read `.zshrc` or `.bashrc`. Put Pi on that PATH, or set `piAgent.command` to
+the full executable path. On Windows, an npm global install is `pi.cmd`. The extension starts that
+script with `cmd.exe /d /c` and escapes `%` in arguments. A `pi.exe` on
+`PATH` is launched directly.
+
+**Session titles stay on "Pi Coding Agent".** macOS and Linux need Python 3
+with the standard `pty` module on `PATH`, or `PYTHON3` set to that executable.
+Windows always uses the fixed title. A newly installed Python is picked up
+after the window reloads.
+
+**Insert into Chat says nothing was selected.** Choose a file or folder in
+the Explorer, or open a file, and run the command again. If no Pi chat is
+open, the command creates one and then inserts the path.
 
 ## Security and privacy
 

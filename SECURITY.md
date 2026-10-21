@@ -29,3 +29,16 @@ lifecycle, path insertion, editor-tab movement, the bundled Unix PTY adapter,
 and published-package contents. The extension intentionally does not operate in
 untrusted or virtual workspaces.
 
+A missing Pi executable is detected before launch. Explicit paths are stat'ed.
+Windows direct launch searches `PATH` and `PATHEXT` and skips empty `PATH`
+entries. `.exe` and `.com` files are launched directly. An npm `pi.cmd` or
+`pi.bat` shim is started with `cmd.exe /d /c` because a bare name would not
+resolve to that script. Percent signs in that shim path and in arguments are
+doubled so cmd does not expand environment variables, and unquoted
+metacharacters are caret-escaped. On macOS and Linux login-shell mode, a bare
+command that is not already on the extension-host `PATH` is checked with
+`command -v` of that single quoted word in the same login shell used to start
+Pi. The lookup does not concatenate the configured command into a shell
+script. The output channel does not record the working directory or a
+resolved executable path.
+

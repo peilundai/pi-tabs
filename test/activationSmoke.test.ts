@@ -10,6 +10,7 @@ interface Disposable {
 interface FakeTerminal {
   readonly name: string;
   readonly exitStatus: undefined;
+  readonly processId: Promise<number>;
   show(preserveFocus?: boolean): void;
   sendText(text: string, addNewLine?: boolean): void;
   dispose(): void;
@@ -29,6 +30,8 @@ type ModuleLoad = (
 test("activation registers all commands and live chats reuse one concrete group", async () => {
   const registered = new Map<string, (...args: unknown[]) => unknown>();
   const createdAtColumns: number[] = [];
+  const sentText: string[] = [];
+  const informationMessages: string[] = [];
   const terminals: FakeTerminal[] = [];
   const disposable = (): Disposable => ({ dispose: () => undefined });
   let activeTerminal: FakeTerminal | undefined;
@@ -77,6 +80,7 @@ test("activation registers all commands and live chats reuse one concrete group"
       const terminal: FakeTerminal = {
         name: options.name,
         exitStatus: undefined,
+        processId: Promise.resolve(1),
         show: () => {
           activeTerminal = terminal;
           activeGroup.viewColumn =
@@ -86,7 +90,9 @@ test("activation registers all commands and live chats reuse one concrete group"
           activeGroup.activeTab = { input: new FakeTabInputTerminal() };
           activeTerminalListener?.(terminal);
         },
-        sendText: () => undefined,
+        sendText: (text: string) => {
+          sentText.push(text);
+        },
         dispose: () => {
           const index = terminals.indexOf(terminal);
           if (index >= 0) {
@@ -98,7 +104,9 @@ test("activation registers all commands and live chats reuse one concrete group"
       terminals.push(terminal);
       return terminal;
     },
-    showInformationMessage: async () => undefined,
+    showInformationMessage: async (message: string) => {
+      informationMessages.push(message);
+    },
     showWarningMessage: async () => undefined,
     showErrorMessage: async () => undefined,
     showQuickPick: async () => undefined,
@@ -113,7 +121,7 @@ test("activation registers all commands and live chats reuse one concrete group"
       getConfiguration: () => ({
         get: (key: string): unknown =>
           ({
-            command: "/usr/bin/true",
+            command: process.execPath,
             args: [],
             cwdMode: "auto",
             launchMode: "loginShell",
@@ -176,7 +184,17 @@ test("activation registers all commands and live chats reuse one concrete group"
       manifest.contributes.commands.map((item) => item.command).sort(),
     );
 
-    await registered.get("piAgent.newChat")?.();
+    await registered.get("piAgent.insertPath")?.();
+    assert.equal(terminals.length, 0);
+    assert.match(informationMessages[0] ?? "", /Select a file/);
+
+    await registered.get("piAgent.insertPath")?.(
+      { scheme: "file", fsPath: "/tmp/example.ts" },
+      [{ scheme: "file", fsPath: "/tmp/example.ts" }],
+    );
+    assert.equal(terminals.length, 1);
+    assert.match(sentText.join("\n"), /@example\.ts/);
+
     await registered.get("piAgent.newChat")?.();
     assert.deepEqual(createdAtColumns, [-2, 2]);
 
