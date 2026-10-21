@@ -76,6 +76,12 @@ The current project was checked.
 - No runtime dependencies or production audit vulnerabilities
 - Packaged contents look appropriately restricted
 
+### Addressed in the release-readiness changes
+
+- `LICENSE` is the canonical MIT text again, so license scanners can identify MIT. The extension-scope sentence and the upstream icon MIT text live in `NOTICE`. The license choice is still MIT.
+- `AGENTS.md`, `CLAUDE.md`, and `PUBLISHING.md` are excluded from the VSIX.
+- A missing Pi executable, a non-zero exit, Python on `PATH`, and Windows profile launch are handled in the extension. See `CHANGELOG.md`.
+
 ### Must address
 
 The declared public URLs currently return **404**:
@@ -161,7 +167,7 @@ CI may continue to use Node 22 for build tooling even if extension runtime types
 
 - [ ] Verify the exact upstream license and copyright notice for every Pi-derived asset.
 - [ ] Include the complete third-party license text required for redistributed or derived assets in `NOTICE` or a dedicated `ThirdPartyNotices.txt`; attribution alone might not satisfy the upstream license.
-- [ ] Consider restoring `LICENSE` to the canonical, unmodified MIT text and keeping project-scope and trademark explanations in `NOTICE` so automated license scanners identify it reliably.
+- [x] `LICENSE` is the canonical MIT text. Project-scope and trademark explanations stay in `NOTICE`, which also includes the upstream MIT text for the redistributed Pi icon derivatives.
 - [ ] Resolve the separate trademark and endorsement question for the Pi name and geometric mark.
 
 ### Release metadata — required
@@ -214,6 +220,26 @@ Then:
 8. For every update, increment the SemVer version before publishing.
 
 After the publisher and extension have existed for at least six months, you can apply for a verified publisher badge if you own an eligible domain that is also at least six months old.
+
+## Open VSX
+
+VS Code Marketplace publishing does not publish to Open VSX. Cursor installs from Open VSX, so publish the same VSIX there separately. Do not create a second package.
+
+1. Sign in at [open-vsx.org](https://open-vsx.org/) with GitHub.
+2. Create an access token.
+3. Create the namespace once. It must match `publisher` in `package.json`:
+
+   ```bash
+   npx ovsx create-namespace peilundai -p "$OVSX_PAT"
+   ```
+
+4. Publish the VSIX produced by `npm run package`:
+
+   ```bash
+   npx ovsx publish pi-agent-launcher-0.2.0.vsix -p "$OVSX_PAT"
+   ```
+
+`ovsx` does not build a different archive. `vsce package` is the package step for both registries. Open VSX rejects a license file it cannot recognize, which is why `LICENSE` stays canonical MIT.
 
 ## Official references
 

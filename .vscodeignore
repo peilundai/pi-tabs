@@ -7,6 +7,9 @@ docs/**
 .github/**
 CONTRIBUTING.md
 SECURITY.md
+AGENTS.md
+CLAUDE.md
+PUBLISHING.md
 tsconfig.json
 tsconfig.test.json
 eslint.config.mjs

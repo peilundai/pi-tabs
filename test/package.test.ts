@@ -36,6 +36,26 @@ test("every contributed command has a matching activation event", () => {
   );
 });
 
+test("the license file stays canonical MIT text and dev docs stay unpackaged", () => {
+  const license = readFileSync("LICENSE", "utf8");
+  assert.match(license, /^MIT License\n\nCopyright \(c\) 2026 Peilun Dai\n/);
+  assert.doesNotMatch(license, /This license covers/);
+  assert.match(readFileSync("NOTICE", "utf8"), /covers this Visual Studio Code/);
+  const ignore = readFileSync(".vscodeignore", "utf8");
+  for (const entry of ["AGENTS.md", "CLAUDE.md", "PUBLISHING.md", "src/**", "test/**"]) {
+    assert.equal(ignore.includes(entry), true, entry);
+  }
+  const manifestWithListing = JSON.parse(readFileSync("package.json", "utf8")) as {
+    qna?: string;
+    categories?: string[];
+  };
+  assert.equal(
+    manifestWithListing.qna,
+    "https://github.com/peilundai/pi-tabs/issues",
+  );
+  assert.deepEqual(manifestWithListing.categories, ["AI", "Chat"]);
+});
+
 test("the New Chat command ships a theme-aware Pi icon", () => {
   const command = manifest.contributes.commands.find(
     (item) => item.command === "piAgent.newChat",

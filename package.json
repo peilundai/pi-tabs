@@ -1,7 +1,7 @@
 {
   "name": "pi-agent-launcher",
   "displayName": "Pi Coding Agent Tabs",
-  "description": "Open Pi Coding Agent in focused editor tabs, reuse one group, and insert files as @mentions. Unofficial and open source.",
+  "description": "Open the separately installed Pi Coding Agent in editor tabs, reuse one group, and insert files as @mentions. Unofficial.",
   "version": "0.2.0",
   "publisher": "peilundai",
   "author": {
@@ -16,6 +16,7 @@
   "bugs": {
     "url": "https://github.com/peilundai/pi-tabs/issues"
   },
+  "qna": "https://github.com/peilundai/pi-tabs/issues",
   "pricing": "Free",
   "icon": "media/pi-coding-agent-icon.png",
   "galleryBanner": {
@@ -52,8 +53,8 @@
     }
   },
   "categories": [
-    "Chat",
-    "Other"
+    "AI",
+    "Chat"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -101,7 +102,7 @@
       ]
     },
     "configuration": {
-      "title": "Pi Agent",
+      "title": "Pi Coding Agent",
       "properties": {
         "piAgent.command": {
           "type": "string",
@@ -142,7 +143,7 @@
           ],
           "enumDescriptions": [
             "Run Pi through a login shell on macOS/Linux or directly on Windows. Recommended.",
-            "Use the default VS Code terminal profile, then send the Pi command as text. Windows profiles other than Command Prompt may require manual quoting adjustments."
+            "Use the default VS Code terminal profile, then send the Pi command as one line. On Windows the profile shell stays open after Pi exits. Profiles other than Command Prompt may require manual quoting adjustments."
           ],
           "default": "loginShell",
           "scope": "window",

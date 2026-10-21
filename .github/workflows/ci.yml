@@ -39,7 +39,7 @@ jobs:
       - name: Reject development files in VSIX
         shell: bash
         run: |
-          if unzip -Z1 pi-agent-launcher-*.vsix | grep -E '/(src|test|reference|\.github)/'; then
+          if unzip -Z1 pi-agent-launcher-*.vsix | grep -E '(^|/)(AGENTS|CLAUDE|PUBLISHING)\.md$|/(src|test|reference|\.github)/'; then
             echo "Development-only files were packaged" >&2
             exit 1
           fi
