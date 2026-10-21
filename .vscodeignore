@@ -7,6 +7,9 @@ docs/**
 .github/**
 CONTRIBUTING.md
 SECURITY.md
+AGENTS.md
+CLAUDE.md
+PUBLISHING.md
 tsconfig.json
 tsconfig.test.json
 eslint.config.mjs
@@ -14,6 +17,7 @@ package-lock.json
 **/*.ts
 **/*.map
 .gitignore
+.gitattributes
 **/*.test.ts
 node_modules/**
 .DS_Store

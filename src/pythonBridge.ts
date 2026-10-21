@@ -1,3 +1,4 @@
+import { executableCandidates } from "./executableLookup";
 import type { LaunchPlan } from "./types";
 
 const COMMON_PYTHON_LOCATIONS = [
@@ -5,6 +6,11 @@ const COMMON_PYTHON_LOCATIONS = [
   "/opt/homebrew/bin/python3",
   "/usr/local/bin/python3",
 ] as const;
+
+/** Python 2 has a `pty` module, but the bridge requires Python 3. */
+const PYTHON3_PROBE =
+  "import sys,fcntl,pty,select,termios,tty; raise SystemExit(0 if sys.version_info[0] >= 3 else 1)";
+const MAX_PYTHON_PROBES = 8;
 
 export interface PythonProbe {
   platform: NodeJS.Platform;
@@ -28,20 +34,20 @@ export function locatePythonWithPty(probe: PythonProbe): string | undefined {
     return undefined;
   }
 
-  const configured = [probe.environment.PYTHON3, probe.environment.PYTHON].filter(
-    (value): value is string => Boolean(value),
-  );
-  const candidates = [...new Set([...configured, ...COMMON_PYTHON_LOCATIONS])];
-  for (const candidate of candidates) {
+  let attempts = 0;
+  for (const candidate of pythonExecutableCandidates(
+    probe.platform,
+    probe.environment,
+  )) {
     if (!probe.exists(candidate)) {
       continue;
     }
+    if (attempts >= MAX_PYTHON_PROBES) {
+      break;
+    }
+    attempts += 1;
     try {
-      const result = probe.run(
-        candidate,
-        ["-c", "import fcntl, pty, select, termios, tty"],
-        2_500,
-      );
+      const result = probe.run(candidate, ["-c", PYTHON3_PROBE], 2_500);
       if (result.status === 0) {
         return candidate;
       }
@@ -50,6 +56,25 @@ export function locatePythonWithPty(probe: PythonProbe): string | undefined {
     }
   }
   return undefined;
+}
+
+export function pythonExecutableCandidates(
+  platform: NodeJS.Platform,
+  environment: NodeJS.Dict<string>,
+): readonly string[] {
+  const configured = [environment.PYTHON3, environment.PYTHON].filter(
+    (value): value is string => Boolean(value?.trim()),
+  );
+  const expanded = configured.flatMap((value) =>
+    executableCandidates(value.trim(), platform, environment),
+  );
+  return [
+    ...new Set([
+      ...expanded,
+      ...COMMON_PYTHON_LOCATIONS,
+      ...executableCandidates("python3", platform, environment),
+    ]),
+  ];
 }
 
 export function buildBridgeLaunch(

@@ -30,8 +30,11 @@ I/O boundary.
 | Module | Responsibility |
 | --- | --- |
 | `configuration.ts` | Validate editor settings and apply bounded defaults. |
+| `executableLookup.ts` | Resolve one configured executable without shell interpolation. |
 | `workingDirectory.ts` | Choose a home, first root, prompted root, or most-specific active root. |
 | `launch.ts` | Quote executable arguments and produce platform-specific shell plans. |
+| `terminalExit.ts` | Decide when an exited Pi tab is closed or left open. |
+| `sessionPlacement.ts` | Bind a `ViewColumn.Beside` chat to the concrete column of its new tab. |
 | `pathMentions.ts` | Convert resources and confirmed file-drop payloads into Pi mentions. |
 | `dropInterception.ts` | Recognize an editor moved into a Pi group and produce a reversible plan. |
 | `titleParser.ts` | Parse bounded OSC title streams and compact Pi session names. |
@@ -65,6 +68,11 @@ The login shell is an environment bootstrap boundary, not an invitation to
 shell syntax in settings. The final shell command uses `exec`, so Pi replaces
 the bootstrap shell and exit status/lifecycle remain direct.
 
+On Windows, `.exe` and `.com` matches are launched directly. npm's `pi.cmd`
+shim is not a process VS Code 1.85 will resolve from a bare `shellPath`, so
+that file is started with `cmd.exe /d /c`. Percent signs are doubled and
+unquoted metacharacters are caret-escaped. `/d` skips AutoRun.
+
 ## Unix PTY adapter
 
 VS Code pseudoterminals expose streams, while an interactive terminal program
@@ -76,8 +84,19 @@ every path exists. OSC 0/1/2 titles whose heading is `π`, `Pi`, or
 `Pi Coding Agent` are compacted; unrelated shell title messages are suppressed
 so they cannot rename a fresh Pi tab. Partial OSC sequences are bounded at 8 KiB.
 
-If Python or the Unix modules are absent, the manager creates a normal VS Code
-terminal. Core commands and context-menu insertion remain available.
+Python discovery checks `PYTHON3`, `PYTHON`, common install locations, and
+`python3` on `PATH`. The probe requires Python 3. Discovery is skipped on
+Windows. If Python or the Unix modules are absent, the manager creates a
+normal VS Code terminal. Core commands and context-menu insertion remain
+available.
+
+Before a chat is created, the manager checks that the configured executable
+exists. A bare name on macOS or Linux that is missing from the extension-host
+`PATH` is checked with `command -v` in the same non-interactive login shell
+used for launch. The command is passed as one quoted word. A negative result
+is cached until the window reloads. Profile mode still launches when the host
+`PATH` misses, because the terminal profile may differ. A non-zero process
+exit leaves the tab open; a zero exit closes it.
 
 ## Path movement
 
@@ -90,5 +109,6 @@ the most recently active Pi terminal in that column.
 ## Published package
 
 The VSIX contains compiled `out/*.js`, runtime assets, the Python adapter,
-README, changelog, license, notice, and support document. Source, tests, CI, local editor files, source maps, and package artifacts are
-excluded by `.vscodeignore`.
+README, changelog, license, notice, and support document. Source, tests, CI,
+local editor files, source maps, agent instructions, the publishing guide,
+and package artifacts are excluded by `.vscodeignore`.
